@@ -7,3 +7,5 @@ Metrics/LineLength:
   Enabled: true
   Exclude:
     - spec/**/*
+Metrics/MethodLength:
+  Max: 20

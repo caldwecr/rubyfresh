@@ -14,8 +14,8 @@ class QueueOfTwoStacks
     outbound.pop
   end
 
-  def print_first
-    puts outbound.last
+  def read_first
+    outbound.last
   end
 
   def outbound
@@ -24,6 +24,7 @@ class QueueOfTwoStacks
   end
 
   def self.process_input(input)
+    output = []
     queries = input.drop 1 # Remove the number of queries from the input
     queue = QueueOfTwoStacks.new
     queries.each do |query|
@@ -35,12 +36,12 @@ class QueueOfTwoStacks
       when '2'
         queue.dequeue
       when '3'
-        queue.print_first
+        output << queue.read_first
       else
         raise ArgumentError, 'Unrecognized query type.'
       end
     end
-    queue
+    output
   end
 
   private def maintain_invariant
@@ -52,5 +53,6 @@ class QueueOfTwoStacks
 end
 
 input = $stdin.readlines
-QueueOfTwoStacks.process_input input
-
+QueueOfTwoStacks.process_input(input).each do |output|
+  puts output
+end

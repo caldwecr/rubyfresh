@@ -4,6 +4,7 @@ Metrics/BlockLength:
   Exclude:
     - spec/**/*
 Metrics/LineLength:
+  Max: 120
   Enabled: true
   Exclude:
     - spec/**/*

@@ -9,7 +9,7 @@ describe QueueOfTwoStacks do
       queue.enqueue 'b'
       queue.enqueue 'c'
 
-      expect(queue.items).to eq %w[a b c]
+      expect(queue.outbound).to eq %w[c b a]
     end
   end
 
@@ -20,7 +20,7 @@ describe QueueOfTwoStacks do
     end
     it 'removes the first item from the queue' do
       queue.dequeue
-      expect(queue.items).to eq %i[dog mouse]
+      expect(queue.outbound).to eq %i[mouse dog]
     end
   end
 

@@ -1,19 +1,32 @@
 # Implements a basic FIFO queue using two stacks
 class QueueOfTwoStacks
-  attr_reader :items
+  attr_reader :inbound
   def initialize(items = [])
-    @items = items
+    @inbound = items
+    @outbound = []
   end
 
   def enqueue(item)
-    @items << item
+    @inbound << item
   end
 
   def dequeue
-    @items.shift
+    outbound.pop
   end
 
   def print_first
-    puts @items.first
+    puts outbound.last
+  end
+
+  def outbound
+    maintain_invariant
+    @outbound
+  end
+
+  private def maintain_invariant
+    return unless @outbound.empty?
+    @outbound = @inbound.reverse
+    @inbound = []
+    nil
   end
 end

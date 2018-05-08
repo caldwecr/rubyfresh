@@ -85,16 +85,42 @@ class DeferredArray
   end
   attr_reader :array_size, :spans
 
-  def initialize(array_size, spans)
+  def initialize(array_size)
     @array_size = array_size
-    @spans = spans
+    @spans = []
+  end
+
+  def add_span(span)
+    partitioned = partition_spans span
+
+    new_spans = [span] if partitioned[:impacted].empty?
+    new_spans ||= partitioned[:impacted].map { |impacted_span| Span.combine impacted_span, span }.flatten
+    @spans = partitioned[:left]
+             .concat(new_spans)
+             .concat(partitioned[:right])
   end
 
   def [](idx)
-    val = 0
     spans.each do |span|
-      val += span.val if span.covers_idx? idx
+      return span.val if span.covers_idx? idx
     end
-    val
+    0
+  end
+
+  # Returns three arrays left spans, impacted spans, and right spans
+  def partition_spans(span)
+    left_spans = []
+    impacted_spans = []
+    right_spans = []
+    spans.each do |curr_span|
+      if curr_span.overlaps? span
+        impacted_spans << curr_span
+      elsif curr_span.start_idx < span.start_idx
+        left_spans << curr_span
+      else
+        right_spans << curr_span
+      end
+    end
+    { left: left_spans, impacted: impacted_spans, right: right_spans }
   end
 end

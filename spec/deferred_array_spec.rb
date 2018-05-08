@@ -412,13 +412,71 @@ describe DeferredArray::Span do
 end
 
 describe DeferredArray do
+  subject(:da) { DeferredArray.new 5 }
+  let(:default_spans) do
+    [
+      DeferredArray::Span.new(0, 1, 100),
+      DeferredArray::Span.new(1, 3, 100),
+      DeferredArray::Span.new(2, 3, 100)
+    ]
+  end
+
+  describe '#add_span' do
+    let(:span) { DeferredArray::Span.new(2, 35, 17) }
+    context 'when there are no existing spans' do
+      it 'adds the span' do
+        da.add_span span
+
+        expect(da.spans).to eq [span]
+      end
+    end
+    context 'when there are existing spans' do
+      subject(:da) { DeferredArray.new 100 }
+      it 'adds the span to the spans in the correct order' do
+        span0 = DeferredArray::Span.new(0, 10, 1)
+        span1 = DeferredArray::Span.new(40, 60, 300)
+        span2 = DeferredArray::Span.new(20, 30, 20)
+        expect(da.spans).to eq []
+        da.add_span span0
+        expect(da.spans).to eq [span0]
+        da.add_span span1
+        expect(da.spans).to eq [span0, span1]
+        da.add_span span2
+        expect(da.spans).to eq [span0, span2, span1]
+      end
+
+      it 'maintains the invariant that each index is spanned at most once' do
+        span0 = DeferredArray::Span.new(0, 50, 1)
+        span1 = DeferredArray::Span.new(40, 60, 300)
+        span2 = DeferredArray::Span.new(20, 30, 20)
+        da.add_span span0
+        expect(da.spans).to eq [span0]
+        da.add_span span1
+        expect(da.spans).to eq [
+          DeferredArray::Span.new(0, 39, 1),
+          DeferredArray::Span.new(40, 50, 301),
+          DeferredArray::Span.new(51, 60, 300)
+        ]
+        da.add_span span2
+        expect(da.spans).to eq [
+          DeferredArray::Span.new(0, 19, 1),
+          DeferredArray::Span.new(20, 30, 21),
+          DeferredArray::Span.new(31, 39, 1),
+          DeferredArray::Span.new(40, 50, 301),
+          DeferredArray::Span.new(51, 60, 300)
+        ]
+      end
+    end
+  end
+
   describe 'getting the value for an index' do
+    before do
+      default_spans.each do |span|
+        da.add_span span
+      end
+    end
+
     it 'is the value at the specified zero-based index' do
-      da = DeferredArray.new 5, [
-        DeferredArray::Span.new(0, 1, 100),
-        DeferredArray::Span.new(1, 3, 100),
-        DeferredArray::Span.new(2, 3, 100)
-      ]
       expect(da[0]).to eq 100
       expect(da[1]).to eq 200
       expect(da[2]).to eq 200

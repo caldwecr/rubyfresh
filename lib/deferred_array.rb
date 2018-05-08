@@ -22,6 +22,10 @@ class DeferredArray
       covers_start?(other) && covers_end?(other)
     end
 
+    def covers_idx?(idx)
+      start_idx <= idx && end_idx >= idx
+    end
+
     def covers_start?(other)
       start_idx <= other.start_idx && end_idx >= other.start_idx
     end
@@ -79,24 +83,18 @@ class DeferredArray
       end
     end
   end
-  attr_reader :array_size, :ops
+  attr_reader :array_size, :spans
 
-  def initialize(array_size, ops)
+  def initialize(array_size, spans)
     @array_size = array_size
-    @ops = ops
+    @spans = spans
   end
 
   def [](idx)
     val = 0
-    ops.each do |op|
-      val += op[2] if op_spans_idx? op, idx
+    spans.each do |span|
+      val += span.val if span.covers_idx? idx
     end
     val
-  end
-
-  private
-
-  def op_spans_idx?(op, idx)
-    op[0] <= idx && op[1] >= idx
   end
 end

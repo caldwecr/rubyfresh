@@ -414,12 +414,16 @@ end
 describe DeferredArray do
   describe 'getting the value for an index' do
     it 'is the value at the specified zero-based index' do
-      da = DeferredArray.new 5, [[0, 1, 100], [1, 4, 100], [2, 3, 100]]
+      da = DeferredArray.new 5, [
+        DeferredArray::Span.new(0, 1, 100),
+        DeferredArray::Span.new(1, 3, 100),
+        DeferredArray::Span.new(2, 3, 100)
+      ]
       expect(da[0]).to eq 100
       expect(da[1]).to eq 200
       expect(da[2]).to eq 200
       expect(da[3]).to eq 200
-      expect(da[4]).to eq 100
+      expect(da[4]).to eq 0
     end
   end
 end

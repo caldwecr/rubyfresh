@@ -90,6 +90,10 @@ class DeferredArray
     @spans = []
   end
 
+  def max
+    spans.map(&:val).max
+  end
+
   def add_span(span)
     partitioned = partition_spans span
 

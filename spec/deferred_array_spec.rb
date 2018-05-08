@@ -469,6 +469,21 @@ describe DeferredArray do
     end
   end
 
+  describe '#max' do
+    it 'is the maximum value of any element in the DeferredArray' do
+      span0 = DeferredArray::Span.new(0, 50, 1)
+      span1 = DeferredArray::Span.new(40, 60, 300)
+      span2 = DeferredArray::Span.new(20, 30, 20)
+      expect(da.max).to be nil
+      da.add_span span0
+      expect(da.max).to eq 1
+      da.add_span span1
+      expect(da.max).to eq 301
+      da.add_span span2
+      expect(da.max).to eq 301
+    end
+  end
+
   describe 'getting the value for an index' do
     before do
       default_spans.each do |span|

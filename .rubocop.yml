@@ -9,4 +9,4 @@ Metrics/LineLength:
   Exclude:
     - spec/**/*
 Metrics/MethodLength:
-  Max: 20
+  Max: 35

@@ -12,6 +12,10 @@ class DeferredArray
       @val = val
     end
 
+    def inspect
+      { start_idx: start_idx, end_idx: end_idx, val: val }.to_s
+    end
+
     def overlaps?(other)
       (start_idx >= other.start_idx && start_idx <= other.end_idx) ||
           (end_idx >= other.start_idx && end_idx <= other.end_idx) ||
@@ -42,7 +46,14 @@ class DeferredArray
     end
 
     def self.combine(left, right)
-      return [left, right].sort_by(&:start_idx) unless left.overlaps? right
+      unless left.overlaps? right
+        val = if left.start_idx <= right.start_idx
+                [nil, left, right]
+              else
+                [right, left, nil]
+              end
+        return val
+      end
       # handle the case where left covers right
       if left.covers? right
         if left.start_idx == right.start_idx
@@ -83,32 +94,112 @@ class DeferredArray
       end
     end
   end
+
+  # A special binary tree for spans
+  # Currently it will be right heavy proportional to the number of duples that are returned from combine
+  class SpanNode
+    attr_reader :span, :left, :right, :max_value, :default_value
+
+    def initialize(initialization_value = 0)
+      @default_value = initialization_value
+    end
+
+    def inspect
+      # this other variant of inspect is helpful when debugging rspec test issues
+      # to_arr.to_s
+      { span: span, left: left, right: right, max_value: max_value, default_value: default_value }.to_s
+    end
+
+    def ==(other)
+      return other == to_arr if other.is_a? Array
+
+      self.class == other.class &&
+          span == other.span &&
+          left == other.left &&
+          right == other.right &&
+          max_value == other.max_value &&
+          default_value == other.default_value
+    end
+
+    def to_arr
+      left_arr = [] if left.nil?
+      left_arr ||= left.to_arr
+      right_arr = [] if right.nil?
+      right_arr ||= right.to_arr
+      left_arr.concat([span]).concat(right_arr)
+    end
+
+    def push(new_span)
+      # Remember that the span can span between any or none of self.span, left.span, and right.span
+      # Case 0: new_span is nil
+      return new_span if new_span.nil?
+      # Case 1: span is nil
+      if span.nil?
+        @span = new_span
+        @max_value = span.val
+        return span
+      end
+      # Case 2: span is not nil
+      spans = Span.combine span, new_span
+      if spans.count == 1
+        @span = spans[0]
+      elsif spans.count == 2
+        @span = spans[0]
+        @right ||= SpanNode.new
+        right.push spans[1]
+      else # spans.count == 3
+        if spans[0]
+          @left ||= SpanNode.new
+          left.push spans[0]
+        end
+        @span = spans[1]
+        if spans[2]
+          @right ||= SpanNode.new
+          right.push spans[2]
+        end
+      end
+      update_max
+      span
+    end
+
+    def update_max
+      maxs = []
+      maxs << left.max_value unless left.nil?
+      maxs << max_value
+      maxs << span.val
+      maxs << right.max_value unless right.nil?
+      @max_value = maxs.max
+    end
+
+    def [](idx)
+      return 0 if span.nil?
+      return span.val if idx >= span.start_idx && idx <= span.end_idx
+      if idx < span.start_idx
+        return 0 if left.nil?
+        left[idx]
+      elsif idx > span.end_idx
+        return 0 if right.nil?
+        right[idx]
+      end
+    end
+  end
   attr_reader :array_size, :spans
 
   def initialize(array_size)
     @array_size = array_size
-    @spans = []
+    @spans = SpanNode.new
   end
 
   def max
-    spans.map(&:val).max
+    spans.max_value
   end
 
   def add_span(span)
-    partitioned = partition_spans span
-
-    new_spans = [span] if partitioned[:impacted].empty?
-    new_spans ||= partitioned[:impacted].map { |impacted_span| Span.combine impacted_span, span }.flatten
-    @spans = partitioned[:left]
-                 .concat(new_spans)
-                 .concat(partitioned[:right])
+    spans.push span
   end
 
   def [](idx)
-    spans.each do |span|
-      return span.val if span.covers_idx? idx
-    end
-    0
+    spans[idx]
   end
 
   # Returns three arrays left spans, impacted spans, and right spans
@@ -128,6 +219,7 @@ class DeferredArray
     { left: left_spans, impacted: impacted_spans, right: right_spans }
   end
 end
+
 input = $stdin.readlines
 array_length = input.shift.split(' ').first
 da = DeferredArray.new(array_length)

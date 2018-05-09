@@ -237,17 +237,26 @@ describe DeferredArray::Span do
     end
 
     context 'when left and right are disjoint' do
-      let(:left_end) { 20 }
-      it 'is the Array containing left and right' do
-        expect(DeferredArray::Span.combine(left, right)).to eq [left, right]
+      context 'when left precedes right' do
+        let(:left_end) { 20 }
+        it 'is the triple containing nil, left, and right' do
+          expect(DeferredArray::Span.combine(left, right)).to eq [nil, left, right]
+        end
+      end
+      context 'when right precedes left' do
+        let(:right_start) { 3 }
+        let(:right_end) { 5 }
+        it 'is the triple containing right, left, and nil' do
+          expect(DeferredArray::Span.combine(left, right)).to eq [right, left, nil]
+        end
       end
     end
 
     context 'when left start is before right start' do
       context 'when left end is before right start' do
         let(:left_end) { 20 }
-        it 'is left and right' do
-          expect(DeferredArray::Span.combine(left, right)).to eq [left, right]
+        it 'is nil, left, and right' do
+          expect(DeferredArray::Span.combine(left, right)).to eq [nil, left, right]
         end
       end
       context 'when left end is right start' do
@@ -397,20 +406,78 @@ describe DeferredArray::Span do
       let(:left_start) { right_end + 1 }
       context 'when left end is after left start' do
         let(:left_end) { left_start + 1 }
-        it 'is right and left' do
-          expect(DeferredArray::Span.combine(left, right)).to eq [right, left]
+        it 'is right, left, nil' do
+          expect(DeferredArray::Span.combine(left, right)).to eq [right, left, nil]
         end
       end
       context 'when left end is left start' do
         let(:left_end) { left_start }
-        it 'is right and left' do
-          expect(DeferredArray::Span.combine(left, right)).to eq [right, left]
+        it 'is right, left, and nil' do
+          expect(DeferredArray::Span.combine(left, right)).to eq [right, left, nil]
         end
       end
     end
   end
 end
 
+describe DeferredArray::SpanNode do
+  describe '#push' do
+    it 'appends the span to the tree of spans' do
+      span0 = DeferredArray::Span.new(10, 15, 1)
+      span1 = DeferredArray::Span.new(20, 30, 20)
+      span2 = DeferredArray::Span.new(1, 5, 300)
+      span3 = DeferredArray::Span.new(25, 35, 4000)
+      span4 = DeferredArray::Span.new(23, 32, 50_000)
+      subject.push span0 # will produce a monople
+      expect(subject.span).to eq span0
+      expect(subject.left).to be nil
+      expect(subject.right).to be nil
+      subject.push span1 # will produce a triple [nil, left, right]
+      expect(subject.span).to eq span0
+      expect(subject.left).to be nil
+      expect(subject.right.span).to eq span1
+      subject.push span2 # will produce a duple
+      expect(subject.span).to eq span0
+      expect(subject.left.span).to eq span2
+      expect(subject.right.span).to eq span1
+
+      subject.push span3 # will produce a triple
+      expect(subject.span).to eq span0
+      expect(subject.left.span).to eq span2
+      expect(subject.right.span).to eq DeferredArray::Span.new(25, 30, 4020)
+      expect(subject.right.left.span).to eq DeferredArray::Span.new(20, 24, 20)
+      expect(subject.right.right.span).to eq DeferredArray::Span.new(31, 35, 4000)
+      subject.push span4 # will produce a triple and be pushed down to the left and the right
+      interesting_node = subject.right
+      expect(interesting_node.span).to eq DeferredArray::Span.new(25, 30, 54_020)
+      left_node = interesting_node.left
+      expect(left_node.span).to eq DeferredArray::Span.new(20, 22, 20)
+      expect(left_node.left).to be nil
+      expect(left_node.right.span).to eq DeferredArray::Span.new(23, 24, 50_020)
+      right_node = interesting_node.right
+      expect(right_node.span).to eq DeferredArray::Span.new(31, 32, 54_000)
+      expect(right_node.left).to be nil
+      expect(right_node.right.span).to eq DeferredArray::Span.new(33, 35, 4000)
+    end
+
+    it 'handles new spans that are entirely covered by an existing span' do
+      span0 = DeferredArray::Span.new(0, 50, 1)
+      span1 = DeferredArray::Span.new(40, 60, 300)
+      span2 = DeferredArray::Span.new(20, 30, 20)
+      subject.push span0
+      subject.push span1
+      subject.push span2
+
+      expect(subject).to eq [
+        DeferredArray::Span.new(0, 19, 1),
+        DeferredArray::Span.new(20, 30, 21),
+        DeferredArray::Span.new(31, 39, 1),
+        DeferredArray::Span.new(40, 50, 301),
+        DeferredArray::Span.new(51, 60, 300)
+      ]
+    end
+  end
+end
 describe DeferredArray do
   subject(:da) { DeferredArray.new 5 }
   let(:default_spans) do
@@ -426,8 +493,9 @@ describe DeferredArray do
     context 'when there are no existing spans' do
       it 'adds the span' do
         da.add_span span
-
-        expect(da.spans).to eq [span]
+        expected = DeferredArray::SpanNode.new
+        expected.push span
+        expect(da.spans).to eq expected
       end
     end
     context 'when there are existing spans' do
@@ -436,13 +504,23 @@ describe DeferredArray do
         span0 = DeferredArray::Span.new(0, 10, 1)
         span1 = DeferredArray::Span.new(40, 60, 300)
         span2 = DeferredArray::Span.new(20, 30, 20)
-        expect(da.spans).to eq []
+        expected = DeferredArray::SpanNode.new
+        expect(da.spans).to eq expected
+
         da.add_span span0
-        expect(da.spans).to eq [span0]
+
+        expected.push span0
+        expect(da.spans).to eq expected
+
         da.add_span span1
-        expect(da.spans).to eq [span0, span1]
+
+        expected.push span1
+        expect(da.spans).to eq expected
+
         da.add_span span2
-        expect(da.spans).to eq [span0, span2, span1]
+
+        expected.push span2
+        expect(da.spans).to eq expected
       end
 
       it 'maintains the invariant that each index is spanned at most once' do
@@ -457,7 +535,9 @@ describe DeferredArray do
           DeferredArray::Span.new(40, 50, 301),
           DeferredArray::Span.new(51, 60, 300)
         ]
+        puts da.spans.to_arr.map(&:inspect)
         da.add_span span2
+        puts da.spans.to_arr.map(&:inspect)
         expect(da.spans).to eq [
           DeferredArray::Span.new(0, 19, 1),
           DeferredArray::Span.new(20, 30, 21),

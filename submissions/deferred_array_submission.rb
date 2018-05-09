@@ -18,8 +18,8 @@ class DeferredArray
 
     def overlaps?(other)
       (start_idx >= other.start_idx && start_idx <= other.end_idx) ||
-          (end_idx >= other.start_idx && end_idx <= other.end_idx) ||
-          covers?(other)
+        (end_idx >= other.start_idx && end_idx <= other.end_idx) ||
+        covers?(other)
     end
 
     def covers?(other)
@@ -40,9 +40,9 @@ class DeferredArray
 
     def ==(other)
       self.class == other.class &&
-          start_idx == other.start_idx &&
-          end_idx == other.end_idx &&
-          val == other.val
+        start_idx == other.start_idx &&
+        end_idx == other.end_idx &&
+        val == other.val
     end
 
     def self.combine(left, right)
@@ -114,11 +114,11 @@ class DeferredArray
       return other == to_arr if other.is_a? Array
 
       self.class == other.class &&
-          span == other.span &&
-          left == other.left &&
-          right == other.right &&
-          max_value == other.max_value &&
-          default_value == other.default_value
+        span == other.span &&
+        left == other.left &&
+        right == other.right &&
+        max_value == other.max_value &&
+        default_value == other.default_value
     end
 
     def to_arr

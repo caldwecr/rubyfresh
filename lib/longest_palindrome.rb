@@ -5,12 +5,8 @@ class LongestPalindrome
     chars = str.downcase.chars
     return false if chars.length < 2
     while i < j
-      while chars[i] == ' ' && i < j
-        i += 1
-      end
-      while chars[j] == ' ' && i < j
-        j -= 1
-      end
+      i += 1 while chars[i] == ' ' && i < j
+      j -= 1 while chars[j] == ' ' && i < j
       return false if chars[i] != chars[j]
       i += 1
       j -= 1
